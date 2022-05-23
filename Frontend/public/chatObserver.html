@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>iEdu - Fila</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"> 
+        <style>
+            body {
+                background-color: rgba(23, 191, 169, 0.39);
+                margin: 0;
+                height: 100%;
+                font-family: "Open Sans";
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Aguarde, o seu <b>atendimento foi alocado na fila</b> e já irá começar!</p>
+        <p>Se quiser, poderá continuar usando o seu navegador que <b>iremos lhe notificar quando for a hora de ser atendido!</b></p>
+    </body>
+</html>
+
+<script>
+    
+    let id = parseFloat (new URLSearchParams (window.location.search).get ("id"));
+    let ws = new WebSocket ("ws://192.168.0.13:4999");
+
+    ws.addEventListener ('open', () => {
+        ws.send (JSON.stringify ({
+            type: "register"
+        }));
+    });
+
+    ws.addEventListener ('message', async (message) => {
+        let data = JSON.parse (message.data);
+        if (data.idAluno === id) {
+            let notificationSound = new Audio ("./assets/notification.mp3");
+            notificationSound.play ();
+            alert ('Seu atendimento irá começar! Iremos te direcionar para a sala de atendimento');
+            alert ('O professor que irá lhe atender é ' + data.teacher.split ("'")[1] + ". Seu email é: " + data.teachersEmail + ". Guarde esses dados caso seja necessário reportar o professor");
+            setTimeout (() => window.location = "http://192.168.0.13:3000/chatRoom.html?chatroom=" + data.port, 5000);
+            ws.send (JSON.stringify ({
+                type: "unregister"
+            }));
+            ws.close ();
+        }
+    })
+</script>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Sala de aula</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"> 
+        <meta charset="utf-8" />
+        <style>
+
+            body {
+                background-color: rgba(23, 191, 169, 0.39);
+                margin: 0;
+                height: 100%;
+                font-family: "Open Sans"
+            }
+
+            .header {
+                margin-bottom: 2%;
+                margin-left: 2%;
+            }
+
+            .areaInterativa {
+                display: flex;
+                margin-left: 7%;
+                background-color: #13A592;
+                border-radius: 15px;
+                width: 11%;
+                text-align: center;
+                padding: 10px;
+            }
+
+            .controls .control p {
+                text-align: center;
+                margin: 2px;
+            }
+
+            button {
+                width: 150px;
+                padding: 3px;
+                border-radius: 15px;
+                margin-bottom: 10px;
+                border-style: none;
+                color: white;
+                font-size: 20px;
+                box-shadow: 0px 10px 15px -7px rgba(0, 0, 0, 1);
+            }
+
+            .videos {
+                display: flex;
+                left: 425px;
+                position: absolute;
+                top: 20px;
+            }
+
+            .videoFrame {
+                border-radius: 15px;
+                margin-left: 20px;
+                width: 70vh;
+                height: 70vh;
+                border-style: solid;
+                border-color:rgba(0, 0, 0, 1);
+                border-width: 1px;
+            }
+
+            #desconectarButton {
+                background-color: #59149D;
+            }
+
+            #conectarButton {
+                background-color: #0743AB;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Sala de Atendimento</h1>
+            </div>
+            <div class="areaInterativa">
+                <div class="controls">
+                    <p style="text-align: center; font-size: 22px; margin-top: 0px; color: white">Controles</p>
+                    <div class="control">
+                        <button style="visibility: hidden; position: absolute;" id="saudacaoButton" type="button">Sincronizar</button>
+                    </div>
+                    <div class="control">
+                        <button id="conectarButton" type="button">Conectar</button>
+                    </div>
+                    <div class="control">
+                        <button id="desconectarButton" type="button">Desconectar</button>
+                    </div>
+                </div>
+                <div class="videos">
+                    <div class="videoSpace">
+                        <h3>Sua câmara</h3>
+                        <video class="videoFrame" id="videoLocal" poster="https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fronaldmottram.co.nz%2Fwp-content%2Fuploads%2F2019%2F01%2Fdefault-user-icon-8.jpg&f=1&nofb=1" autoplay></video>
+                    </div>
+                    <div class="videoSpace">
+                        <h3>Câmara remota</h3>
+                        <video class="videoFrame" id="videoRemoto" poster="https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fronaldmottram.co.nz%2Fwp-content%2Fuploads%2F2019%2F01%2Fdefault-user-icon-8.jpg&f=1&nofb=1" autoplay></video>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+
+    <script>
+
+        let porta = parseFloat (new URLSearchParams (window.location.search).get ("chatroom"));
+        var P2PConnection = new RTCPeerConnection ({'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]});;
+
+        let botaoSaudacao = document.getElementById ("saudacaoButton");
+        let botaoDesconectar = document.getElementById ("desconectarButton");
+        let botaoConectar = document.getElementById ("conectarButton");
+
+        let localVideo = document.getElementById ("videoLocal");
+        let remoteVideo = document.getElementById ("videoRemoto");
+
+        let localStream;
+        let remoteStream;
+
+        console.log ("Trying to contact the signaling server!");
+        const signalingServer = new WebSocket ("ws://192.168.0.13:" + porta);
+
+        signalingServer.addEventListener ('message', (message) => {
+            let data = JSON.parse (message.data);
+
+            switch (data.type) {
+                case "offer":
+                    console.log ("Received offer request!");
+                    handleOffer (data.offer);
+                    break;
+                case "answer":
+                    console.log ("Received answer response!");
+                    handleAnswer (data.answer);
+                    break;
+                case "candidate":
+                    console.log ("Exchaning ICE candidates!");
+                    handleCandidate (data.candidate);
+            } 
+        });
+
+        function sendMessage (message) {
+            if (signalingServer.readyState === 1)
+                signalingServer.send (message);
+        }
+
+        /*botaoSaudacao.addEventListener ("click", () => {
+            sendMessage (JSON.stringify ({type: "saudacao"}));
+        });*/
+
+        async function getUserMedia () {
+            localStream = await navigator.mediaDevices.getUserMedia ({'video': true, 'audio': true});
+            localVideo.srcObject = localStream;
+            setTimeout (() => {
+                localStream.getTracks ().forEach ((track) => {
+                    P2PConnection.addTrack (track, localStream);
+                })
+            }, 2000);
+        }
+
+        P2PConnection.addEventListener ('track', (event) => {
+            remoteVideo.srcObject = event.streams[0];
+            console.log ("Remote track received!");
+        });
+
+        botaoConectar.addEventListener ("click", async () => {
+            const offer = await P2PConnection.createOffer ({offerToReceiveAudio: true, offerToReceiveVideo: true});
+            await P2PConnection.setLocalDescription (offer);
+            console.log ("Sending offer!");
+            sendMessage (JSON.stringify ({type: "offer", offer: offer}));
+            
+           
+            P2PConnection.onicecandidate = (event) => {
+                console.log ("Sending ICE candidates!");
+                if (event.candidate)
+                    sendMessage (JSON.stringify ({type: "candidate", candidate: event.candidate}));
+                console.log ("ICE candidates on fire!");
+            }
+        });
+
+        botaoDesconectar.addEventListener ("click", () => {
+            console.log ("Closing connection with signaling server!");
+            signalingServer.close ();
+            P2PConnection.close ();
+            alert ('O atendimento foi concluido! Essa aba será fechada!');
+            window.close ();
+        });
+
+        async function handleAnswer (answer) {
+            const RemoteSDP = new RTCSessionDescription (answer);
+            await P2PConnection.setRemoteDescription (RemoteSDP);
+            console.log ("P2P Connection established!");
+        }
+
+        async function handleOffer (offer) {
+            P2PConnection.setRemoteDescription (offer);
+            const answer = await P2PConnection.createAnswer ({offerToReceiveAudio: true, offerToReceiveVideo: true});
+            await P2PConnection.setLocalDescription (answer);
+            console.log ("Sending answer response!");
+            sendMessage (JSON.stringify ({type: "answer", answer: answer}));
+            console.log ("P2P Connection established!");
+        }
+
+        async function handleCandidate (candidate) {
+            P2PConnection.addIceCandidate (new RTCIceCandidate (candidate));
+        }
+
+        getUserMedia ();
+        setTimeout (() => {
+            sendMessage (JSON.stringify ({type: "saudacao"}));
+        }, 4000);
+        alert ('Aperte o botão conectar ou aguarde a outra pessoa! Para sair da videochamada, basta apertar o botão desconectar');
+
+    </script>
+</html>

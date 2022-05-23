@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>iEdu</title>
+    </head>
+    <body>
+        <h1>Chat Observer</h1>
+        <div>
+            <button id="btnSubscribe">Subscribe</button>
+            <button id="btnUnsubscribe">Unsubscribe</button>
+        </div>
+    </body>
+</html>
+
+<script>
+
+    let btnSubscribe = document.getElementById ("btnSubscribe");
+    let btnUnsubscribe = document.getElementById ("btnUnsubscribe");
+
+    let ws = new WebSocket ("ws://127.0.0.1:4999");
+
+    btnSubscribe.addEventListener ('click', () => {
+        ws.send (JSON.stringify ({
+            type: "register"
+        }));
+    });
+
+    btnUnsubscribe.addEventListener ('click', () => {
+        ws.send (JSON.stringify ({
+            type: "unregister"
+        }));
+        ws.close ();
+    });
+
+    ws.addEventListener ('message', (message) => {
+        let data = JSON.parse (message.data);
+        console.log (data);
+        if (data.idAluno === id)
+            alert ("Atendimento na porta: " + data.port);
+    })
+</script>

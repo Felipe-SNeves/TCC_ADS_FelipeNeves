@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Sala de aula</title>
+        <meta charset="utf-8" />
+        <style>
+
+            .areaInterativa {
+                display: flex;
+            }
+
+            .controls .control {
+                margin: 2px;
+            }
+
+            button {
+                width: 100px;
+            }
+
+            .videos {
+                display: flex;
+                left: 300px;
+                position: absolute;
+                top: 20px;
+            }
+
+            .videoFrame {
+                width: 70vh;
+                height: 70vh;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Chatroom</h1>
+            </div>
+            <div class="areaInterativa">
+                <div class="controls">
+                    <div class="control">
+                        <button id="saudacaoButton" type="button">Saudar</button>
+                    </div>
+                    <div class="control">
+                        <button id="conectarButton" type="button">Conectar</button>
+                    </div>
+                    <div class="control">
+                        <button id="desconectarButton" type="button">Desconectar</button>
+                    </div>
+                </div>
+                <div class="videos">
+                    <div class="videoSpace">
+                        <h3>Sua câmara</h3>
+                        <video class="videoFrame" id="videoLocal" poster="/photos/a@a.co.jpg" autoplay></video>
+                    </div>
+                    <div class="videoSpace">
+                        <h3>Câmara remota</h3>
+                        <video class="videoFrame" id="videoRemoto" poster="/photos/c@a.co.jpeg" autoplay></video>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+
+    <script>
+
+        var P2PConnection = new RTCPeerConnection ({'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]});;
+
+        let botaoSaudacao = document.getElementById ("saudacaoButton");
+        let botaoDesconectar = document.getElementById ("desconectarButton");
+        let botaoConectar = document.getElementById ("conectarButton");
+
+        let localVideo = document.getElementById ("videoLocal");
+        let remoteVideo = document.getElementById ("videoRemoto");
+
+        let localStream;
+        let remoteStream;
+
+        console.log ("Trying to contact the signaling server!");
+        const signalingServer = new WebSocket ("ws://192.168.0.13:5000");
+
+        signalingServer.addEventListener ('message', (message) => {
+            let data = JSON.parse (message.data);
+
+            switch (data.type) {
+                case "offer":
+                    console.log ("Received offer request!");
+                    handleOffer (data.offer);
+                    break;
+                case "answer":
+                    console.log ("Received answer response!");
+                    handleAnswer (data.answer);
+                    break;
+                case "candidate":
+                    console.log ("Exchaning ICE candidates!");
+                    handleCandidate (data.candidate);
+            } 
+        });
+
+        function sendMessage (message) {
+            if (signalingServer.readyState === 1)
+                signalingServer.send (message);
+        }
+
+        botaoSaudacao.addEventListener ("click", () => {
+            sendMessage (JSON.stringify ({type: "saudacao"}));
+        });
+
+        async function getUserMedia () {
+            localStream = await navigator.mediaDevices.getUserMedia ({'video': true, 'audio': true});
+            localVideo.srcObject = localStream;
+            setTimeout (() => {
+                localStream.getTracks ().forEach ((track) => {
+                    P2PConnection.addTrack (track, localStream);
+                })
+            }, 2000);
+        }
+
+        P2PConnection.addEventListener ('track', (event) => {
+            remoteVideo.srcObject = event.streams[0];
+            console.log ("Remote track received!");
+        });
+
+        botaoConectar.addEventListener ("click", async () => {
+            const offer = await P2PConnection.createOffer ({offerToReceiveAudio: true, offerToReceiveVideo: true});
+            await P2PConnection.setLocalDescription (offer);
+            console.log ("Sending offer!");
+            sendMessage (JSON.stringify ({type: "offer", offer: offer}));
+            
+           
+            P2PConnection.onicecandidate = (event) => {
+                console.log ("Sending ICE candidates!");
+                if (event.candidate)
+                    sendMessage (JSON.stringify ({type: "candidate", candidate: event.candidate}));
+                console.log ("ICE candidates on fire!");
+            }
+        });
+
+        botaoDesconectar.addEventListener ("click", () => {
+            console.log ("Closing connection with signaling server!");
+            signalingServer.close ();
+            P2PConnection.close ();
+            window.location.reload ();
+        });
+
+        async function handleAnswer (answer) {
+            const RemoteSDP = new RTCSessionDescription (answer);
+            await P2PConnection.setRemoteDescription (RemoteSDP);
+            console.log ("P2P Connection established!");
+        }
+
+        async function handleOffer (offer) {
+            P2PConnection.setRemoteDescription (offer);
+            const answer = await P2PConnection.createAnswer ({offerToReceiveAudio: true, offerToReceiveVideo: true});
+            await P2PConnection.setLocalDescription (answer);
+            console.log ("Sending answer response!");
+            sendMessage (JSON.stringify ({type: "answer", answer: answer}));
+            console.log ("P2P Connection established!");
+        }
+
+        async function handleCandidate (candidate) {
+            P2PConnection.addIceCandidate (new RTCIceCandidate (candidate));
+        }
+
+        getUserMedia ();
+
+    </script>
+</html>

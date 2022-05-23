@@ -1,0 +1,50 @@
+{
+  "name": "backend-iedu",
+  "version": "1.0.0",
+  "description": "Backend of the iedu application",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node_modules/.bin/nodemon src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Felipe-SNeves/Backend_iedu_TCC.git"
+  },
+  "keywords": [
+    "iedu",
+    "backend",
+    "tcc"
+  ],
+  "author": {
+    "name": "Felipe Neves",
+    "email": "felpslva5@gmail.com"
+  },
+  "contributors": [
+    {
+      "name": "Paula Sayuri"
+    },
+    {
+      "name": "Gabriel Garcia"
+    }
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Felipe-SNeves/Backend_iedu_TCC/issues"
+  },
+  "homepage": "https://github.com/Felipe-SNeves/Backend_iedu_TCC#readme",
+  "dependencies": {
+    "body-parser": "^1.19.1",
+    "crypto": "^1.0.1",
+    "dotenv": "^14.3.2",
+    "express": "^4.17.2",
+    "jsonwebtoken": "^8.5.1",
+    "multer": "^1.4.4",
+    "mysql": "^2.18.1",
+    "nodemailer": "^6.7.2",
+    "ws": "^8.4.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  }
+}

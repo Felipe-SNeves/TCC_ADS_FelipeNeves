@@ -1,0 +1,35 @@
+version: '3'
+
+networks:
+  iedu_net:
+    driver: bridge
+
+services:
+  database:
+    image: mysql:5.7
+    container_name: iedu_database
+    ports:
+      - "3306:3306"
+    networks:
+      - iedu_net
+    environment:
+      MYSQL_DATABASE: 'iedu'
+      MYSQL_USER: 'user'
+      MYSQL_PASSWORD: 'secret'
+      MYSQL_ROOT_PASSWORD: 'secret123'
+    volumes:
+      - ./database:/mnt
+  server:
+      image: backend_iedu
+      container_name: iedu_backend
+      networks:
+        - iedu_net
+      ports:
+        - "3001:3001"
+  front:
+    image: frontend_iedu
+    container_name: iedu_frontend
+    networks:
+      - iedu_net
+    ports:
+      - "3000:3000"
